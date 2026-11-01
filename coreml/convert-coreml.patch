@@ -1,0 +1,134 @@
+diff --git a/models/tts/kokoro/laishere-coreml/convert-coreml.py b/models/tts/kokoro/laishere-coreml/convert-coreml.py
+index b14f426..f8de15a 100644
+--- a/models/tts/kokoro/laishere-coreml/convert-coreml.py
++++ b/models/tts/kokoro/laishere-coreml/convert-coreml.py
+@@ -152,6 +152,16 @@ class CoreMLCustomSTFT(nn.Module):
+         backward_imag = original.weight_backward_imag.clone()
+         backward_real[1:-1] *= 2.0
+         backward_imag[1:-1] *= 2.0
++        # COLA normalization torch.istft applies but the deconv path omits:
++        # analysis and synthesis each apply the window once, so the
++        # overlap-added output carries a summed-w^2 envelope (constant 1.5 in
++        # the interior for periodic Hann at hop = n_fft/4). Fold it into the
++        # synthesis weights; the edge taps are sliced off by the center pad.
++        window_sq = original.window.float() ** 2
++        cola = window_sq.reshape(self.n_fft // self.hop_length, self.hop_length).sum(dim=0)
++        assert torch.allclose(cola, cola[:1].expand_as(cola), rtol=1e-5), cola
++        backward_real /= cola[0]
++        backward_imag /= cola[0]
+         self.deconv_real.weight = nn.Parameter(backward_real, requires_grad=False)
+         self.deconv_imag.weight = nn.Parameter(backward_imag, requires_grad=False)
+ 
+@@ -530,6 +540,10 @@ def main():
+     parser.add_argument('--stages', nargs='+', choices=STAGE_NAMES + ['all'], default=['all'],
+                         help=f'Which stages to convert. Choices: all | {" ".join(STAGE_NAMES)}. '
+                              f'Skipped stages reuse existing mlpackages on disk for the E2E chain.')
++    parser.add_argument('--config', help='config.json of a custom checkpoint')
++    parser.add_argument('--model', help='.pth of a custom checkpoint (same architecture as Kokoro-82M)')
++    parser.add_argument('--voice', help='voice pack .pt for the test input')
++    parser.add_argument('--phonemes', help='test phonemes in the checkpoint vocab')
+     args = parser.parse_args()
+     selected = set(STAGE_NAMES) if 'all' in args.stages else set(args.stages)
+ 
+@@ -541,16 +555,23 @@ def main():
+ 
+     # ── Load model ──
+     print('[1] Loading KModel...')
+-    model = KModel()
++    if args.model:
++        # Another checkpoint of the same architecture (Bookmuse: contextboxai Kokoro-Vietnamese).
++        model = KModel(repo_id='hexgrad/Kokoro-82M', config=args.config, model=args.model)
++    else:
++        model = KModel()
+     model.eval()
+ 
+     # ── Generate test inputs ──
+     print('[2] Generating test inputs...')
+-    from kokoro.pipeline import KPipeline
+-    pipe = KPipeline(lang_code='a', model=model)
+-    voice_pack = pipe.load_voice('af_heart')
++    if args.voice:
++        voice_pack = torch.load(args.voice, weights_only=True)
++    else:
++        from kokoro.pipeline import KPipeline
++        pipe = KPipeline(lang_code='a', model=model)
++        voice_pack = pipe.load_voice('af_heart')
+ 
+-    phonemes = "ðə kwɪk bɹaʊn fɑːks dʒʌmps oʊvɚ ðə leɪzi dɑːɡ."
++    phonemes = args.phonemes or "ðə kwɪk bɹaʊn fɑːks dʒʌmps oʊvɚ ðə leɪzi dɑːɡ."
+     input_ids = list(filter(lambda i: i is not None, map(lambda p: model.vocab.get(p), phonemes)))
+     input_ids = torch.LongTensor([[0, *input_ids, 0]])
+     ref_s = voice_pack[len(phonemes) - 1]
+@@ -608,19 +629,24 @@ def main():
+ 
+     # Derive all shape bounds from max_frames
+     bounds = compute_shape_bounds(max_frames)
+-    T_enc = ct.RangeDim(lower_bound=2, upper_bound=bounds['max_T_enc'], default=input_ids.shape[1])
+-    T_a_dim = ct.RangeDim(lower_bound=1, upper_bound=bounds['max_T_a'], default=T_a)
+-    T2_dim = ct.RangeDim(lower_bound=2, upper_bound=bounds['max_T2'], default=F0_pred.shape[1])
+-    T_ns0 = ct.RangeDim(lower_bound=1, upper_bound=bounds['max_ns0_T'], default=noise_sources[0].shape[2])
+-    T_ns1 = ct.RangeDim(lower_bound=1, upper_bound=bounds['max_ns1_T'], default=noise_sources[1].shape[2])
+-    T_pre = ct.RangeDim(lower_bound=100, upper_bound=bounds['max_x_pre_T'], default=T_a * 120 + 1)
++    # Defaults no request has. On iOS/macOS 27 a model fails every prediction after the first at its
++    # default shape. Bookmuse always sends at least one phoneme (3 tokens with the pads), so a 2-token
++    # default is never met; the frame dims default to D_FRAMES (a typical sentence, so the Neural Engine
++    # plans for real sizes: a tiny default puts most of the vocoder on the CPU), and Bookmuse lengthens
++    # the closing pad by a frame when a run would come to exactly that.
++    D_TOKENS, D_FRAMES = 2, 300
++    T_enc = ct.RangeDim(lower_bound=2, upper_bound=bounds['max_T_enc'], default=D_TOKENS)
++    T_a_dim = ct.RangeDim(lower_bound=1, upper_bound=bounds['max_T_a'], default=D_FRAMES)
++    T2_dim = ct.RangeDim(lower_bound=2, upper_bound=bounds['max_T2'], default=D_FRAMES * 2)
++    T_ns0 = ct.RangeDim(lower_bound=1, upper_bound=bounds['max_ns0_T'], default=D_FRAMES * 20)
++    T_ns1 = ct.RangeDim(lower_bound=1, upper_bound=bounds['max_ns1_T'], default=D_FRAMES * 120 + 1)
++    T_pre = ct.RangeDim(lower_bound=100, upper_bound=bounds['max_x_pre_T'], default=D_FRAMES * 120 + 1)
+     print(f'    Shape bounds: T_a≤{bounds["max_T_a"]}, ns0_T≤{bounds["max_ns0_T"]}, '
+           f'ns1_T≤{bounds["max_ns1_T"]}, x_pre_T≤{bounds["max_x_pre_T"]}')
+ 
++    # Bookmuse never uses the GPU (iOS forbids it in the background), and on OS 27 MPSGraph aborts.
+     CU_LIST = [('CPU_ONLY', ct.ComputeUnit.CPU_ONLY),
+-                ('CPU_AND_NE', ct.ComputeUnit.CPU_AND_NE),
+-                ('CPU_AND_GPU', ct.ComputeUnit.CPU_AND_GPU),
+-                ('ALL', ct.ComputeUnit.ALL)]
++                ('CPU_AND_NE', ct.ComputeUnit.CPU_AND_NE)]
+ 
+     def bench(path, feed, n_runs=10):
+         result = None
+@@ -715,12 +741,15 @@ def main():
+     else:
+         print(f'\n[3/7] Alignment — SKIP (reusing {align_path.name})')
+ 
+-    # ═══ 4/7: Prosody (fp16+int8pal) ═══
++    # ═══ 4/7: Prosody (fp16 I/O, fp32 compute, int8pal) ═══
++    # fp32 compute: the Core ML CPU/ANE fp16 path corrupts F0/N at the start
++    # of the sequence for many T_a >= 400 (FluidAudio #947); GPU fp16 and
++    # fp32 are exact. KokoroProsody_v2 on HF.
+     pros_path = OUTDIR / 'KokoroProsody.mlpackage'
+     pros_feed = {"en": en.numpy().astype(np.float16),
+                  "style_s": s.numpy().astype(np.float16)}
+     if 'prosody' in selected:
+-        print('\n[4/7] Prosody (fp16+int8pal)...')
++        print('\n[4/7] Prosody (fp32 compute, int8pal)...')
+         prosody = CoreMLProsodyF0N(model.predictor)
+         prosody.eval()
+         with torch.no_grad():
+@@ -730,7 +759,7 @@ def main():
+                     ct.TensorType(name="style_s", shape=(1, 128), dtype=np.float16)],
+             outputs=[ct.TensorType(name="F0"), ct.TensorType(name="N")],
+             convert_to="mlprogram", minimum_deployment_target=ct.target.iOS17,
+-            compute_precision=ct.precision.FLOAT16, compute_units=ct.ComputeUnit.ALL)
++            compute_precision=ct.precision.FLOAT32, compute_units=ct.ComputeUnit.ALL)
+         ml = cto.palettize_weights(ml, pal_config)
+         ml.save(str(pros_path))
+         bench(pros_path, pros_feed)
+@@ -821,9 +850,9 @@ def main():
+     m_post = ct.models.MLModel(str(post_path), compute_units=ct.ComputeUnit.CPU_AND_NE)
+     m_align = ct.models.MLModel(str(align_path), compute_units=ct.ComputeUnit.CPU_AND_NE)
+     m_pros = ct.models.MLModel(str(pros_path), compute_units=ct.ComputeUnit.CPU_AND_NE)
+-    m_noise = ct.models.MLModel(str(noise_path), compute_units=ct.ComputeUnit.ALL)
++    m_noise = ct.models.MLModel(str(noise_path), compute_units=ct.ComputeUnit.CPU_ONLY)
+     m_voc = ct.models.MLModel(str(voc_path), compute_units=ct.ComputeUnit.CPU_AND_NE)
+-    m_tail = ct.models.MLModel(str(tail_path), compute_units=ct.ComputeUnit.ALL)
++    m_tail = ct.models.MLModel(str(tail_path), compute_units=ct.ComputeUnit.CPU_ONLY)
+ 
+     def run_chain():
+         o1 = m_albert.predict(albert_feed)

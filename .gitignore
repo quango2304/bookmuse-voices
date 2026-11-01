@@ -1,0 +1,13 @@
+# Downloads and intermediate models (android/fetch_sources.sh, prepare_models.py)
+/work/
+# Built packs and release zips (android/make_packs.py); they go to a release, not Git
+/dist/
+.venv/
+__pycache__/
+*.mlpackage
+*.mlmodelc
+*.onnx
+*.tflite
+*.pth
+*.pt
+.DS_Store
