@@ -26,8 +26,7 @@ Each release is pinned by sha256 in the app that downloads it; never replace a f
 | v2 | `kokoro-vi-v2.aar` (173 MB) | Vietnamese ONNX pack, 69 of 90 convs in fp16 | `android/` (its config and voices) |
 | v2 | `bookmuse-voices-android-en-1.zip` (97 MB) | Android English pack | **bookmuse_android** release builds |
 | v2 | `bookmuse-voices-android-vi-1.zip` (104 MB) | Android Vietnamese pack (Kokoro) | bookmuse_android before T52 |
-| v2 | `bookmuse-voices-android-vi-4.zip` (102 MB) | Android Vietnamese pack: VieNeu-TTS v3 Nano, dynamic-batch estimator (`nano/android.py`) | **bookmuse_android** release builds |
-| v2 | `bookmuse-voices-android-vi-3.zip` (102 MB) | The same with the step graph (T52) | bookmuse_android before T56 |
+| v2 | `bookmuse-voices-android-vi-3.zip` (102 MB) | Android Vietnamese pack: VieNeu-TTS v3 Nano (`nano/android.py`) | **bookmuse_android** release builds |
 
 `.aar` files are Apple Archives (LZFSE), opened with `aa` or the AppleArchive framework. The ONNX export of the v1 packs (English
 with kokoro's `KModelForONNX`, Vietnamese from contextboxai's `kokoro_vi.onnx`) wasn't kept as a script.
@@ -54,12 +53,10 @@ zips and pasting the printed pins into bookmuse_android `voices/build.gradle.kts
 
 ## Android Nano pack (`nano/android.py`)
 
-`estimator.onnx` is Nano's vector estimator with a dynamic batch, int8 MatMul (40 MB): a guided step runs the conditional and the
-null pass as a batch of 2, an unguided one the conditional pass alone, and the app does the guidance and the Euler step (it guides
-the first 4 of 8 steps);
+`step.onnx` is Nano's vector estimator with the guidance pair as one batch and the Euler update inside, int8 MatMul (40 MB);
 `text_encoder.onnx` and `codec_decoder.onnx` keep fp32 compute with fp16-stored weights; `duration_predictor.onnx` as published;
 `config.json`, `null.bin`, `voices/<key>.bin` and `sea_g2p.bin` are the files the iOS app ships. Measured choices are in
-bookmuse `specs/tasks/T52-android-vieneu-nano.md` and `T56-android-nano-lighter.md`.
+bookmuse `specs/tasks/T52-android-vieneu-nano.md`.
 
 ## Credits and licences
 
