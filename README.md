@@ -7,6 +7,7 @@ platform, and the releases the apps' builds download them from.
 |---|---|---|
 | `coreml/` | iOS: seven Core ML models per language, on the Neural Engine | bookmuse_ios (the compiled models are committed there) |
 | `android/` | Android: one ONNX model per language (`int8convsafe`, ONNX Runtime on the CPU) and the release zips | bookmuse_android (`:voices:fetchVoices` downloads the zips) |
+| `nano/` | Vietnamese: VieNeu-TTS v3 Nano, Core ML for iOS (`convert.py`, `export_assets.py`) and ONNX Runtime for Android (`android.py`), and the cloned voices | bookmuse_ios, bookmuse_android |
 | `litert/` | Android GPU (LiteRT): work in progress | nothing yet |
 
 Every folder starts from the same checkpoints: [hexgrad/Kokoro-82M](https://huggingface.co/hexgrad/Kokoro-82M) (English) and
@@ -24,7 +25,8 @@ Each release is pinned by sha256 in the app that downloads it; never replace a f
 | v1 | `SeaG2P.xcframework.zip` (7 MB) | sea-g2p (Vietnamese text to phonemes) compiled for iOS | **bookmuse_ios** (`Package.swift` binary target) |
 | v2 | `kokoro-vi-v2.aar` (173 MB) | Vietnamese ONNX pack, 69 of 90 convs in fp16 | `android/` (its config and voices) |
 | v2 | `bookmuse-voices-android-en-1.zip` (97 MB) | Android English pack | **bookmuse_android** release builds |
-| v2 | `bookmuse-voices-android-vi-1.zip` (104 MB) | Android Vietnamese pack | **bookmuse_android** release builds |
+| v2 | `bookmuse-voices-android-vi-1.zip` (104 MB) | Android Vietnamese pack (Kokoro) | bookmuse_android before T52 |
+| v2 | `bookmuse-voices-android-vi-3.zip` (102 MB) | Android Vietnamese pack: VieNeu-TTS v3 Nano (`nano/android.py`) | **bookmuse_android** release builds |
 
 `.aar` files are Apple Archives (LZFSE), opened with `aa` or the AppleArchive framework. The ONNX export of the v1 packs (English
 with kokoro's `KModelForONNX`, Vietnamese from contextboxai's `kokoro_vi.onnx`) wasn't kept as a script.
@@ -49,6 +51,13 @@ Checked 2026-11-01: the scripts rebuild the shipped `model.onnx` files byte for 
 ships. The zips aren't byte-identical to the published v2 ones (a different compressor), so publishing means uploading the new
 zips and pasting the printed pins into bookmuse_android `voices/build.gradle.kts`.
 
+## Android Nano pack (`nano/android.py`)
+
+`step.onnx` is Nano's vector estimator with the guidance pair as one batch and the Euler update inside, int8 MatMul (40 MB);
+`text_encoder.onnx` and `codec_decoder.onnx` keep fp32 compute with fp16-stored weights; `duration_predictor.onnx` as published;
+`config.json`, `null.bin`, `voices/<key>.bin` and `sea_g2p.bin` are the files the iOS app ships. Measured choices are in
+bookmuse `specs/tasks/T52-android-vieneu-nano.md`.
+
 ## Credits and licences
 
 Everything here is Apache License 2.0, as are the sources:
@@ -58,4 +67,6 @@ Everything here is Apache License 2.0, as are the sources:
 - [hexgrad/misaki](https://github.com/hexgrad/misaki): the English pronunciation dictionaries.
 - [PeterReid/graphemes_to_phonemes_en_us](https://huggingface.co/PeterReid/graphemes_to_phonemes_en_us): the English fallback model, exported to ONNX; its vocabulary file is from [FluidInference/FluidAudio](https://github.com/FluidInference/FluidAudio).
 - [pnnbao97/sea-g2p](https://github.com/pnnbao97/sea-g2p): Vietnamese text normalisation and phonemes.
+- [pnnbao-ump/VieNeu-TTS-v3-Nano](https://huggingface.co/pnnbao-ump/VieNeu-TTS-v3-Nano): the Vietnamese model (code and weights Apache-2.0;
+  its training data is CC BY-NC 4.0, so ask the author before a store release).
 - [FluidInference/mobius](https://github.com/FluidInference/mobius): the Core ML converter `coreml/convert-coreml.patch` applies to.
