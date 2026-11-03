@@ -2,11 +2,12 @@
 """VieNeu-TTS v3 Nano for Android (ONNX Runtime, CPU): the Vietnamese pack and its release zip, from the package's ONNX graphs and
 the voices, settings and dictionary the iOS app ships (bookmuse_ios GMReader/OnDeviceVoices/vi, made by export_assets.py).
 
-- step.onnx: one Euler step with classifier-free guidance, by ONNX surgery on vector_estimator.onnx (no torch round trip): x and t
-  are doubled to a batch of 2, so the conditional and the null pass are one run (ctx, ctx_mask, spk and style come as a pair, the
-  null text padded to the chunk's length and masked), then x_next = x + dt · (v_null + cfg · (v − v_null)). Dynamic T and L.
-  MatMul and Gemm weights in int8 (dynamic quantization, per tensor): 40 MB and ~1.9× the speed of fp32 on ARM CPUs; F0 moves
-  0.65 st from fp32 on the same noise, where two fp32 seeds differ by 2–4 st (T52).
+- estimator.onnx: vector_estimator.onnx with a dynamic batch on every input, so a guided step runs the conditional and the null
+  pass as one batch of 2 (the null text padded to the chunk's length and masked) and an unguided one the conditional pass alone.
+  The engine does the guidance (v_null + cfg · (v − v_null)) and the Euler step; Android guides the first 4 of its 8 steps (T56:
+  Whisper CER as with 8, ~1.3× the flow's speed; 2 or none read words wrong). MatMul and Gemm weights in int8 (dynamic
+  quantization, per tensor): 40 MB and ~1.9× the speed of fp32 on ARM CPUs; F0 moves 0.65 st from fp32 on the same noise, where
+  two fp32 seeds differ by 2–4 st (T52).
 - text_encoder.onnx, codec_decoder.onnx: weights stored in fp16 and cast to fp32 when the session loads (half the size, the same
   output: codec SNR 74 dB against fp32). duration_predictor.onnx as it is.
 - config.json (vocab, ids, frame rate, hop, steps, cfg, sway, each voice's speed), null.bin and voices/<key>.bin (x-vector 192 +
@@ -35,43 +36,18 @@ SNAPSHOT = glob.glob(str(Path.home() / ".cache/huggingface/hub/models--pnnbao-um
 IOS = ROOT.parent / "bookmuse_ios/Packages/GlossmarkKit/Sources/GMReader/OnDeviceVoices/vi"
 WORK = ROOT / "work/nano/android"
 OUT = ROOT / "dist/android/vi-nano"
-ZIP_VERSION = 3  # bookmuse-voices-android-vi-<n>.zip; 1 was Kokoro-Vietnamese (2 never shipped)
+ZIP_VERSION = 4  # bookmuse-voices-android-vi-<n>.zip; 1 was Kokoro-Vietnamese (2 never shipped), 3 the step graph (T52)
 
 
-def step_graph() -> onnx.ModelProto:
+def estimator_graph() -> onnx.ModelProto:
+    """vector_estimator.onnx with a dynamic batch on every input: 2 for a guided step (the conditional and the null pass in one
+    run), 1 for an unguided one. The engine does the guidance and the Euler step."""
     m = onnx.load(SNAPSHOT + "vector_estimator.onnx")
     g = m.graph
-    renamed = {"x": "ve_x", "t": "ve_t"}
-    for n in g.node:
-        for i, name in enumerate(n.input):
-            if name in renamed:
-                n.input[i] = renamed[name]
-    estimate = g.output[0].name
-    pairs = [i for i in g.input if i.name not in renamed]
-    for i in pairs:
+    for i in g.input:
         dim = i.type.tensor_type.shape.dim[0]
         dim.ClearField("dim_value")
         dim.dim_param = "B"
-    del g.input[:]
-    g.input.extend([helper.make_tensor_value_info("x", TP.FLOAT, [1, 144, "T"]), helper.make_tensor_value_info("t", TP.FLOAT, [1]),
-                    helper.make_tensor_value_info("dt", TP.FLOAT, [1]), helper.make_tensor_value_info("cfg", TP.FLOAT, [1])] + pairs)
-    for name, value in [("s0", 0), ("s1", 1), ("s2", 2), ("axis0", 0)]:
-        g.initializer.append(nh.from_array(np.array([value], np.int64), name))
-    before = [helper.make_node("Concat", ["x", "x"], ["ve_x"], axis=0), helper.make_node("Concat", ["t", "t"], ["ve_t"], axis=0)]
-    after = [
-        helper.make_node("Slice", [estimate, "s0", "s1", "axis0"], ["guided_cond"]),
-        helper.make_node("Slice", [estimate, "s1", "s2", "axis0"], ["guided_null"]),
-        helper.make_node("Sub", ["guided_cond", "guided_null"], ["guided_diff"]),
-        helper.make_node("Mul", ["guided_diff", "cfg"], ["guided_scaled"]),
-        helper.make_node("Add", ["guided_null", "guided_scaled"], ["guided"]),
-        helper.make_node("Mul", ["guided", "dt"], ["guided_dx"]),
-        helper.make_node("Add", ["x", "guided_dx"], ["x_next"]),
-    ]
-    nodes = before + list(g.node) + after
-    del g.node[:]
-    g.node.extend(nodes)
-    del g.output[:]
-    g.output.extend([helper.make_tensor_value_info("x_next", TP.FLOAT, [1, 144, "T"])])
     del g.value_info[:]  # shapes inferred for a batch of 1
     onnx.checker.check_model(m)
     return m
@@ -103,9 +79,9 @@ def main():
         shutil.rmtree(OUT)
     (OUT / "voices").mkdir(parents=True)
 
-    onnx.save(step_graph(), WORK / "step_fp32.onnx")
-    quant_pre_process(str(WORK / "step_fp32.onnx"), str(WORK / "step_pre.onnx"), skip_symbolic_shape=True)
-    quantize_dynamic(str(WORK / "step_pre.onnx"), str(OUT / "step.onnx"), weight_type=QuantType.QInt8,
+    onnx.save(estimator_graph(), WORK / "estimator_fp32.onnx")
+    quant_pre_process(str(WORK / "estimator_fp32.onnx"), str(WORK / "estimator_pre.onnx"), skip_symbolic_shape=True)
+    quantize_dynamic(str(WORK / "estimator_pre.onnx"), str(OUT / "estimator.onnx"), weight_type=QuantType.QInt8,
                      op_types_to_quantize=["MatMul", "Gemm"], extra_options={"MatMulConstBOnly": True})
     for name in ["text_encoder", "codec_decoder"]:
         onnx.save(fp16_storage(onnx.load(SNAPSHOT + name + ".onnx")), OUT / f"{name}.onnx")
