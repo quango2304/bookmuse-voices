@@ -82,8 +82,10 @@ def fp16_storage(m: onnx.ModelProto) -> onnx.ModelProto:
     g = m.graph
     kept, casts = [], []
     for i in g.initializer:
-        if i.data_type == TP.FLOAT and int(np.prod(i.dims)) >= 1024:
-            kept.append(nh.from_array(nh.to_array(i).astype(np.float16), i.name + "_f16"))
+        values = nh.to_array(i) if i.data_type == TP.FLOAT and int(np.prod(i.dims)) >= 1024 else None
+        # Only what fp16 holds: a value past its range (a -1e9 mask fill) would become inf.
+        if values is not None and np.abs(values).max() <= 60000:
+            kept.append(nh.from_array(values.astype(np.float16), i.name + "_f16"))
             casts.append(helper.make_node("Cast", [i.name + "_f16"], [i.name], to=TP.FLOAT, name=i.name + "_cast"))
         else:
             kept.append(i)
