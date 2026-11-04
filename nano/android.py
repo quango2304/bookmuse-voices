@@ -12,7 +12,7 @@ the voices, settings and dictionary the iOS app ships (bookmuse_ios GMReader/OnD
 - config.json (vocab, ids, frame rate, hop, steps, cfg, sway, each voice's speed), null.bin and voices/<key>.bin (x-vector 192 +
   style 50 × 256, float32 little-endian), sea_g2p.bin.
 
-Writes dist/android/vi-nano/ and dist/bookmuse-voices-android-vi-<ZIP_VERSION>.zip (deterministic, as android/make_packs.py) and
+Writes dist/android/vi-nano/ and dist/bookmuse-voices-android-vi-<ZIP_VERSION>.zip (deterministic: sorted entries, fixed timestamps) and
 prints the pin for bookmuse_android voices/build.gradle.kts.
 
     uv run --no-project --python 3.12 --with onnx==1.19.0 --with onnxruntime==1.31.0 --with numpy python -I nano/android.py
@@ -35,7 +35,7 @@ SNAPSHOT = glob.glob(str(Path.home() / ".cache/huggingface/hub/models--pnnbao-um
 IOS = ROOT.parent / "bookmuse_ios/Packages/GlossmarkKit/Sources/GMReader/OnDeviceVoices/vi"
 WORK = ROOT / "work/nano/android"
 OUT = ROOT / "dist/android/vi-nano"
-ZIP_VERSION = 3  # bookmuse-voices-android-vi-<n>.zip; 1 was Kokoro-Vietnamese (2 never shipped)
+ZIP_VERSION = 3  # bookmuse-voices-android-vi-<n>.zip (1 and 2 were an older model)
 
 
 def step_graph() -> onnx.ModelProto:
