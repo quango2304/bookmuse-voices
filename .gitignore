@@ -13,3 +13,5 @@ __pycache__/
 
 # Gated Phonon 40M multilingual weights, voices and listening clips (CC BY-NC 4.0, never committed)
 /phonon40m/
+
+/phonon_pace/wav/
