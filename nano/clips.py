@@ -17,7 +17,7 @@ from vieneu_utils.phonemize_text import phonemize_text_with_emotions
 from vieneu_utils.core_utils import trim_and_fade
 
 APP = Path(__file__).resolve().parent.parent / "work/nano/app/vi"
-NAMES = {"tam_an": "Tâm An", "dang_khoa": "Đăng Khoa", "hoang_long": "Hoàng Long", "van_thanh": "Văn Thành", "ba_phuc": "Bá Phúc", "ngoc_han": "Ngọc Hân", "minh_khang": "Minh Khang", "trung_hieu": "Trung Hiếu", "bao_tran": "Bảo Trân", "hai_dang": "Hải Đăng", "thu_ha": "Thu Hà", "dieu_linh": "Diệu Linh", "mai_chi": "Mai Chi"}
+NAMES = {"tam_an": "Tâm An", "dang_khoa": "Đăng Khoa", "hoang_long": "Hoàng Long", "van_thanh": "Văn Thành", "ba_phuc": "Bá Phúc", "ngoc_han": "Ngọc Hân", "trung_hieu": "Trung Hiếu", "bao_tran": "Bảo Trân", "hai_dang": "Hải Đăng", "thu_ha": "Thu Hà", "dieu_linh": "Diệu Linh", "mai_chi": "Mai Chi"}
 out = Path(sys.argv[1])
 nano = Nano()
 for key, name in NAMES.items():

@@ -14,7 +14,6 @@ VOICES = {
     "van_thanh": "s_hochiminh_male_phapvan_book_vc-pc",
     "ba_phuc": "s_tiengiang_male_giongnamratnambo_story_vc-flow2",
     "ngoc_han": "s_hochiminh_female_machvi_story_vc-flow3",
-    "minh_khang": "n_hanoi_male_giongnamtramhay_story_vc-flow2",
     "trung_hieu": "s_vinhlong_male_hanhquang20260316220828233_story_vc-flow2",
     "bao_tran": "sg_female_thanhmai_yt_24k-pre-pc2",
     "thu_ha": "n_hanoi_female_nguyetnga2_book_vc-pc",
@@ -24,4 +23,4 @@ VOICES = {
 }
 SETTINGS = {"steps": 16, "cfg": 3.0, "sway": -1.0}
 # Each voice's speed factor to one pace (speeds.py).
-SPEEDS = {"tam_an": 1.044, "dang_khoa": 1.035, "hoang_long": 0.75, "van_thanh": 1.0, "ba_phuc": 1.168, "ngoc_han": 1.144, "minh_khang": 0.857, "trung_hieu": 1.12, "bao_tran": 1.084, "thu_ha": 0.912, "dieu_linh": 0.988, "mai_chi": 0.967, "hai_dang": 0.972}
+SPEEDS = {"tam_an": 1.044, "dang_khoa": 1.035, "hoang_long": 0.75, "van_thanh": 1.0, "ba_phuc": 1.168, "ngoc_han": 1.144, "trung_hieu": 1.12, "bao_tran": 1.084, "thu_ha": 0.912, "dieu_linh": 0.988, "mai_chi": 0.967, "hai_dang": 0.972}
