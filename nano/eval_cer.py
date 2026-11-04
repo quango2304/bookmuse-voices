@@ -105,12 +105,25 @@ def run(name, opts):
                 hyp = res["text"].strip()
                 words = [w for s in res["segments"] for w in s.get("words", [])]
                 short = [w["word"].strip() for w in words if w["end"] - w["start"] < 0.08]
-                row = {"voice": key, "chunk": ci, "seed": seed, "ref": text, "hyp": hyp,
+                pauses, marks = pauses_in(wav), len(re.findall(r"[,.;:!?…—]+(?=\s)", text))
+                row = {"voice": key, "chunk": ci, "seed": seed, "ref": text, "hyp": hyp, "pauses": pauses, "marks": marks,
                        "hyp_norm": normalizer.normalize(hyp, punc_norm=False), "seconds": round(secs, 2), "capped": secs > 15.0,
                        "speed": speed, "dropped": dropped, "short": short}
                 log.write(json.dumps(row, ensure_ascii=False) + "\n")
                 log.flush()
                 print(key, ci, seed, hyp[:70], flush=True)
+
+
+def pauses_in(wav, rate=24000):
+    """Quiet stretches of 300 ms or more inside a chunk (10 ms windows under −45 dB, the package's edge threshold)."""
+    win = rate // 100
+    env = np.abs(wav[: len(wav) // win * win]).reshape(-1, win).mean(1)
+    quiet = env < 10 ** (-45 / 20)
+    runs, n = 0, 0
+    for q in quiet:
+        n = n + 1 if q else 0
+        runs += n == 30
+    return int(runs)
 
 
 def pace(nano, nc, chunks, phonemize, spk, style):
@@ -177,11 +190,14 @@ def report(names):
                 v["en_wrong"] += sum(1 for i in wrong if ref[i] in EN)
                 v["short"] += len(r["short"])
                 v["capped"] += r["capped"]
+                if "pauses" in r:
+                    v["extra"] += max(0, r["pauses"] - r["marks"])
+                    v["missing"] += max(0, r["marks"] - r["pauses"])
                 if stoch:
                     examples.append((voice, ci, r["seed"], [ref[i] for i in sorted(stoch)], r["hyp"]))
 
         print(f"\n== {name}")
-        print(f"{'voice':12} {'renders':>7} {'bad %':>6} {'del/100w':>8} {'sub/100w':>8} {'ins':>4} {'sys':>4} {'EN✗':>4} {'short':>5} {'cap':>3}")
+        print(f"{'voice':28} {'renders':>7} {'bad %':>6} {'del/100w':>8} {'sub/100w':>8} {'ins':>4} {'sys':>4} {'EN✗':>4} {'short':>5} {'cap':>3} {'xtra':>5} {'miss':>5}")
         tot = defaultdict(float)
         for voice, v in sorted(per_voice.items(), key=lambda kv: -kv[1]["bad"] / kv[1]["renders"]):
             for k, x in v.items():
@@ -194,8 +210,8 @@ def report(names):
 
 
 def line(label, v):
-    return (f"{label:12} {int(v['renders']):7d} {100 * v['bad'] / v['renders']:6.1f} {100 * v['del'] / v['words']:8.2f} "
-            f"{100 * v['sub'] / v['words']:8.2f} {int(v['ins']):4d} {int(v['sys']):4d} {int(v['en_wrong']):4d} {int(v['short']):5d} {int(v['capped']):3d}")
+    return (f"{label:28} {int(v['renders']):7d} {100 * v['bad'] / v['renders']:6.1f} {100 * v['del'] / v['words']:8.2f} "
+            f"{100 * v['sub'] / v['words']:8.2f} {int(v['ins']):4d} {int(v['sys']):4d} {int(v['en_wrong']):4d} {int(v['short']):5d} {int(v['capped']):3d} {v['extra'] / v['renders']:5.2f} {v['missing'] / v['renders']:5.2f}")
 
 
 if __name__ == "__main__":
