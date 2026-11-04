@@ -10,3 +10,6 @@ __pycache__/
 *.pth
 *.pt
 .DS_Store
+
+# Gated Phonon 40M multilingual weights, voices and listening clips (CC BY-NC 4.0, never committed)
+/phonon40m/
