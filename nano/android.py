@@ -35,7 +35,7 @@ SNAPSHOT = glob.glob(str(Path.home() / ".cache/huggingface/hub/models--pnnbao-um
 IOS = ROOT.parent / "bookmuse_ios/Packages/GlossmarkKit/Sources/GMReader/OnDeviceVoices/vi"
 WORK = ROOT / "work/nano/android"
 OUT = ROOT / "dist/android/vi-nano"
-ZIP_VERSION = 5  # bookmuse-voices-android-vi-<n>.zip (1 and 2 were an older model)
+ZIP_VERSION = 6  # bookmuse-voices-android-vi-<n>.zip (1 and 2 were an older model)
 
 
 def step_graph() -> onnx.ModelProto:

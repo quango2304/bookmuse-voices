@@ -4,7 +4,7 @@ the catalog's voices and speeds, trim and fade), transcribes each chunk with Whi
     uv run --with mlx-whisper --with jiwer --with scipy python eval_cer.py run <name> [voices=a,b] [seeds=8] [chunks=N]
         [max_chars=180] [steps=16] [cfg=3] [sway=-1] [speedcap=9] [speed=x] [speedmul=1] [noise=1] [backend=coreml|onnx]
     (a voice is a catalog key, or key@file for another clone of it)
-    uv run --with jiwer python eval_cer.py report <name> [<name> ...]
+    uv run --with jiwer python eval_cer.py report <name> [<name> ...] [pauses=<ms>] [-v]
 
 Each (chunk text, seed) gets the same noise in every run, so runs compare pair by pair. A word Whisper gets wrong in every
 seed of a (voice, chunk) is Whisper's or the normaliser's error, not the model's: the report leaves it out ("stochastic"
@@ -29,6 +29,7 @@ WORK = Path(__file__).resolve().parent.parent / "work/nano"
 OUT = WORK / "cer"
 WHISPER = "mlx-community/whisper-large-v3-turbo"
 TONES = {"̀": "2", "́": "1", "̃": "3", "̉": "4", "̣": "5"}
+PAUSE_MS = 0
 EN = {"laptop", "email", "video", "singapore", "marketing"}
 
 
@@ -114,15 +115,15 @@ def run(name, opts):
                 print(key, ci, seed, hyp[:70], flush=True)
 
 
-def pauses_in(wav, rate=24000):
-    """Quiet stretches of 300 ms or more inside a chunk (10 ms windows under −45 dB, the package's edge threshold)."""
+def pauses_in(wav, rate=24000, ms=300):
+    """Quiet stretches of `ms` or more inside a chunk (10 ms windows under −45 dB, the package's edge threshold)."""
     win = rate // 100
     env = np.abs(wav[: len(wav) // win * win]).reshape(-1, win).mean(1)
     quiet = env < 10 ** (-45 / 20)
     runs, n = 0, 0
     for q in quiet:
         n = n + 1 if q else 0
-        runs += n == 30
+        runs += n == ms // 10
     return int(runs)
 
 
@@ -190,7 +191,15 @@ def report(names):
                 v["en_wrong"] += sum(1 for i in wrong if ref[i] in EN)
                 v["short"] += len(r["short"])
                 v["capped"] += r["capped"]
-                if "pauses" in r:
+                if PAUSE_MS:
+                    # Recounted from the saved audio at the report's threshold (pauses=<ms>).
+                    import soundfile as sf
+                    wav = sf.read(OUT / "wav" / name / voice.replace("@", "_") / f"c{ci:02d}_s{r['seed']}.flac", dtype="float32")[0]
+                    marks = len(re.findall(r"[,.;:!?…—]+(?=\s)", r["ref"]))
+                    p = pauses_in(wav, ms=PAUSE_MS)
+                    v["extra"] += max(0, p - marks)
+                    v["missing"] += max(0, marks - p)
+                elif "pauses" in r:
                     v["extra"] += max(0, r["pauses"] - r["marks"])
                     v["missing"] += max(0, r["marks"] - r["pauses"])
                 if stoch:
@@ -218,4 +227,5 @@ if __name__ == "__main__":
     if sys.argv[1] == "run":
         run(sys.argv[2], opts_of(sys.argv[3:]))
     else:
-        report([a for a in sys.argv[2:] if not a.startswith("-")])
+        PAUSE_MS = int(opts_of([a for a in sys.argv[2:] if a.startswith("pauses=")]).get("pauses", 0))
+        report([a for a in sys.argv[2:] if not a.startswith("-") and "=" not in a])
