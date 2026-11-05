@@ -2,7 +2,7 @@
 the catalog's voices and speeds, trim and fade), transcribes each chunk with Whisper and aligns it word by word.
 
     uv run --with mlx-whisper --with jiwer --with scipy python eval_cer.py run <name> [voices=a,b] [seeds=8] [chunks=N]
-        [max_chars=180] [steps=16] [cfg=3] [sway=-1] [speedcap=9] [speed=x] [speedmul=1] [noise=1] [backend=coreml|onnx]
+        [max_chars=180] [steps=16] [cfg=3] [sway=-1] [speedcap=9] [speed=x] [speedmul=1] [noise=1] [backend=coreml|onnx|android] [first=0]
     (a voice is a catalog key, or key@file for another clone of it)
     uv run --with jiwer python eval_cer.py report <name> [<name> ...] [pauses=<ms>] [-v]
 
@@ -57,7 +57,7 @@ def run(name, opts):
     import nano_coreml as nc
 
     voices = opts.get("voices", ",".join(VOICES)).split(",")
-    seeds = int(opts.get("seeds", 8))
+    first, seeds = int(opts.get("first", 0)), int(opts.get("seeds", 8))
     steps, cfg = int(opts.get("steps", SETTINGS["steps"])), float(opts.get("cfg", SETTINGS["cfg"]))
     sway, cap, scale = float(opts.get("sway", SETTINGS["sway"])), float(opts.get("speedcap", 9)), float(opts.get("noise", 1))
     backend = opts.get("backend", "coreml")
@@ -75,6 +75,7 @@ def run(name, opts):
     if backend == "onnx":
         from vieneu import Vieneu
         eng = Vieneu(mode="v3nano").engine
+    pack = AndroidPack() if backend == "android" else None
 
     for spec in voices:
         # "key" is the catalog's voice; "key@file" another clone of it, at the speed that brings it to the app's pace.
@@ -86,11 +87,13 @@ def run(name, opts):
         for ci, text in enumerate(chunks):
             ph = phonemize_text_with_emotions(text)
             dropped = "".join(sorted({c for c in ph if c not in nc.CFG["vocab"]}))
-            for seed in range(seeds):
+            for seed in range(first, seeds):
                 if (key, ci, seed) in done:
                     continue
                 full = np.random.default_rng(zlib.crc32(text.encode()) * 100 + seed).standard_normal((1, 144, 240)) * scale
-                if backend == "onnx":
+                if backend == "android":
+                    wav, T, secs = pack.chunk(nano.ids(ph), spk, style, steps, cfg, sway, speed, full)
+                elif backend == "onnx":
                     wav, T, secs = onnx_chunk(eng, ph, spk, style, steps, cfg, sway, speed, full)
                 else:
                     log_s = nano.encode(nano.ids(ph), style, spk)[2]
@@ -150,6 +153,42 @@ def onnx_chunk(eng, ph, spk, style, steps, cfg, sway, speed, full):
                                  "style": eng.null_style})[0]
         x = x + np.float32(tg[i + 1] - tg[i]) * (vu + cfg * (v - vu))
     return np.clip(eng.s_dec.run(None, {"x": x})[0].reshape(-1), -1, 1), T, secs
+
+
+class AndroidPack:
+    """The graphs the Android app runs (dist/android/vi-nano, android.py): NanoModel.synthesize on ONNX Runtime, on the same noise."""
+
+    def __init__(self):
+        import onnxruntime as ort
+        root = WORK.parent.parent / "dist/android/vi-nano"
+        self.text, self.dur, self.step, self.codec = (ort.InferenceSession(str(root / f"{n}.onnx"), providers=["CPUExecutionProvider"])
+                                                      for n in ["text_encoder", "duration_predictor", "step", "codec_decoder"])
+        config = json.loads((root / "config.json").read_text())
+        self.fps, self.hop = config["flow_fps"], config["hop"]
+        null = np.fromfile(root / "null.bin", np.float32)
+        self.null_spk, self.null_style = null[:192].reshape(1, 192), null[192:].reshape(1, 50, 256)
+        self.null_ctx = self.encode([config["bos_id"], config["eos_id"]], self.null_style)
+
+    def encode(self, ids, style):
+        return self.text.run(None, {"ids": np.array([ids], np.int64), "style": style})[0]
+
+    def chunk(self, ids, spk, style, steps, cfg, sway, speed, full):
+        l = len(ids)
+        ctx = self.encode(ids, style)
+        secs = math.exp(float(self.dur.run(None, {"ctx": ctx, "ctx_mask": np.ones((1, l), bool), "spk": spk})[0].reshape(-1)[0])) / speed
+        T = max(2, int(round(min(secs, 15.0) * self.fps)))
+        pair = np.zeros((2, l, 256), np.float32)
+        pair[0], pair[1, :2] = ctx[0], self.null_ctx[0]
+        mask = np.zeros((2, l), bool)
+        mask[0], mask[1, :2] = True, True
+        x = full[..., :T].astype(np.float32)
+        u = np.linspace(0, 1, steps + 1)
+        tg = u + sway * (np.cos(np.pi / 2 * u) - 1 + u)
+        spks, styles = np.concatenate([spk, self.null_spk]), np.concatenate([style, self.null_style])
+        for i in range(steps):
+            x = self.step.run(None, {"x": x, "t": np.array([tg[i]], np.float32), "dt": np.array([tg[i + 1] - tg[i]], np.float32),
+                                     "cfg": np.array([cfg], np.float32), "ctx": pair, "ctx_mask": mask, "spk": spks, "style": styles})[0]
+        return np.clip(self.codec.run(None, {"x": x})[0].reshape(-1)[: T * self.hop], -1, 1), T, secs
 
 
 def report(names):

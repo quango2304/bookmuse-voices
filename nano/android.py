@@ -10,7 +10,7 @@ the voices, settings and dictionary the iOS app ships (bookmuse_ios GMReader/OnD
 - text_encoder.onnx, codec_decoder.onnx: weights stored in fp16 and cast to fp32 when the session loads (half the size, the same
   output: codec SNR 74 dB against fp32). duration_predictor.onnx as it is.
 - config.json (vocab, ids, frame rate, hop, steps, cfg, sway, each voice's speed), null.bin and voices/<key>.bin (x-vector 192 +
-  style 50 × 256, float32 little-endian), sea_g2p.bin.
+  style 50 × 256, float32 little-endian), sea_g2p.bin. A voice in catalog.ANDROID takes its own clone and speed here (T69).
 
 Writes dist/android/vi-nano/ and dist/bookmuse-voices-android-vi-<ZIP_VERSION>.zip (deterministic: sorted entries, fixed timestamps) and
 prints the pin for bookmuse_android voices/build.gradle.kts.
@@ -21,6 +21,7 @@ import glob
 import hashlib
 import json
 import shutil
+import sys
 import zipfile
 from pathlib import Path
 
@@ -30,12 +31,15 @@ from onnx import TensorProto as TP, helper, numpy_helper as nh
 from onnxruntime.quantization import QuantType, quantize_dynamic
 from onnxruntime.quantization.shape_inference import quant_pre_process
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from catalog import ANDROID  # noqa: E402
+
 ROOT = Path(__file__).resolve().parent.parent
 SNAPSHOT = glob.glob(str(Path.home() / ".cache/huggingface/hub/models--pnnbao-ump--VieNeu-TTS-v3-Nano/snapshots/*/"))[0] + "/"
 IOS = ROOT.parent / "bookmuse_ios/Packages/GlossmarkKit/Sources/GMReader/OnDeviceVoices/vi"
 WORK = ROOT / "work/nano/android"
 OUT = ROOT / "dist/android/vi-nano"
-ZIP_VERSION = 6  # bookmuse-voices-android-vi-<n>.zip (1 and 2 were an older model)
+ZIP_VERSION = 7  # bookmuse-voices-android-vi-<n>.zip (1 and 2 were an older model)
 
 
 def step_graph() -> onnx.ModelProto:
@@ -114,10 +118,16 @@ def main():
     ios = json.loads((IOS / "config.json").read_text())
     config = {k: ios[k] for k in ["vocab", "bos_id", "eos_id", "pad_id", "emotion_tags", "flow_fps", "hop", "max_seconds", "steps",
                                   "cfg", "sway", "speeds"]}
+    config["speeds"].update({key: speed for key, (_, speed) in ANDROID.items()})
     (OUT / "config.json").write_text(json.dumps(config, ensure_ascii=False))
     shutil.copyfile(IOS / "null.f32", OUT / "null.bin")
     for key in sorted(config["speeds"]):
-        shutil.copyfile(IOS / "voices" / f"{key}.f32", OUT / "voices" / f"{key}.bin")
+        if key in ANDROID:
+            v = json.load(open(ROOT / "work/nano/voices" / f"{ANDROID[key][0]}.json"))
+            np.concatenate([np.asarray(v["speaker_emb"], np.float32).reshape(-1),
+                            np.asarray(v["style"], np.float32).reshape(-1)]).tofile(OUT / "voices" / f"{key}.bin")
+        else:
+            shutil.copyfile(IOS / "voices" / f"{key}.f32", OUT / "voices" / f"{key}.bin")
     shutil.copyfile(IOS / "sea_g2p.bin", OUT / "sea_g2p.bin")
 
     files = sorted(p.relative_to(OUT).as_posix() for p in OUT.rglob("*") if p.is_file())
