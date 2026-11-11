@@ -6,11 +6,11 @@ the voices, settings and dictionary the iOS app ships (bookmuse_ios GMReader/OnD
   are doubled to a batch of 2, so the conditional and the null pass are one run (ctx, ctx_mask, spk and style come as a pair, the
   null text padded to the chunk's length and masked), then x_next = x + dt · (v_null + cfg · (v − v_null)). Dynamic T and L.
   MatMul and Gemm weights in int8 (dynamic quantization, per tensor): 40 MB and ~1.9× the speed of fp32 on ARM CPUs; F0 moves
-  0.65 st from fp32 on the same noise, where two fp32 seeds differ by 2–4 st (T52).
+  0.65 st from fp32 on the same noise, where two fp32 seeds differ by 2–4 st.
 - text_encoder.onnx, codec_decoder.onnx: weights stored in fp16 and cast to fp32 when the session loads (half the size, the same
   output: codec SNR 74 dB against fp32). duration_predictor.onnx as it is.
 - config.json (vocab, ids, frame rate, hop, steps, cfg, sway, each voice's speed), null.bin and voices/<key>.bin (x-vector 192 +
-  style 50 × 256, float32 little-endian), sea_g2p.bin. A voice in catalog.ANDROID takes its own clone and speed here (T69).
+  style 50 × 256, float32 little-endian), sea_g2p.bin. A voice in catalog.ANDROID takes its own clone and speed here.
 
 Writes dist/android/vi-nano/ and dist/bookmuse-voices-android-vi-<ZIP_VERSION>.zip (deterministic: sorted entries, fixed timestamps) and
 prints the pin for bookmuse_android voices/build.gradle.kts.

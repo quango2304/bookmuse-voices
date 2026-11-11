@@ -1,4 +1,4 @@
-"""A/B clips for T66: each voice off its own pace, as before (the model squeezed or stretched to the speed) and after (the model
+"""A/B clips: each voice off its own pace, as before (the model squeezed or stretched to the speed) and after (the model
 at its own pace, the speed on the audio with the app's time-pitch unit, within 0.9–1.1). Same seed per chunk in both.
 
     swiftc -O tempo.swift -o ../work/nano/tempo

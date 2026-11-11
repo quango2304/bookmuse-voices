@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """The voice picker's preview clips (bookmuse_ios GMReader/Resources/VoiceClips/vi_<key>.m4a) with the Core ML models,
-as the app makes them (T66: the model at its own length, the voice's pace on the audio within 0.9–1.1, by the app's
+as the app makes them (the model at its own length, the voice's pace on the audio within 0.9–1.1, by the app's
 time-pitch unit in tempo.swift): "Xin chào, mình là <name>. Cùng đọc sách với mình nhé!" With `android`, only the voices
 catalog.ANDROID gives their own clone, for bookmuse_android core/ondevice assets voiceclips/ (the other clips are iOS's).
 

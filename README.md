@@ -2,7 +2,7 @@
 
 On-device voices for the Bookmuse reading app: the scripts that make them for each platform, and the releases the apps' builds
 download them from. English, French, German, Spanish and Portuguese are
-[Phonon 40M multilingual](https://huggingface.co/gradium/phonon-40m-multilingual) (Gradium, T61; Phonon 31m English until then),
+[Phonon 40M multilingual](https://huggingface.co/gradium/phonon-40m-multilingual) (Gradium; Phonon 31m English until then),
 Vietnamese is [VieNeu-TTS v3 Nano](https://huggingface.co/pnnbao-ump/VieNeu-TTS-v3-Nano).
 
 | Folder | What it makes | Used by |
@@ -25,7 +25,7 @@ Each release is pinned by sha256 in the app that downloads it; never replace a f
 |---|---|---|---|
 | v4 | `bookmuse-voices-android-phonon-1.zip` (86 MB) | Phonon 40M multilingual: `model.q8.gguf`, `tokenizer.json`, `config.json`, `voices/<Key>.safetensors` (90 voices) | **bookmuse_android** (pinned; **not uploaded to v4 yet**, 2026-11-04) |
 | v4 | `bookmuse-voices-android-vi-5.zip` (102 MB) | VieNeu-TTS v3 Nano for ONNX Runtime (`nano/android.py`), 13 voices | **bookmuse_android** |
-| v4, v3 | `bookmuse-voices-android-en-3.zip` (60 MB) | Phonon 31m English (phonon-31m-en `92741c5`) | earlier Android builds (T58) |
+| v4, v3 | `bookmuse-voices-android-en-3.zip` (60 MB) | Phonon 31m English (phonon-31m-en `92741c5`) | earlier Android builds |
 | v3 | `bookmuse-voices-android-vi-3.zip` (102 MB) | VieNeu-TTS v3 Nano, the first voices | earlier Android builds |
 
 v1 and v2 hold the earlier voices (Kokoro); no app build uses them now. They stay published, as every release does.

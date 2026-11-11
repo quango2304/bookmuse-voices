@@ -1,4 +1,4 @@
-"""Words a second of every Phonon voice on one four-sentence passage of its language (T61): the numbers behind PhononPace in both apps.
+"""Words a second of every Phonon voice on one four-sentence passage of its language: the numbers behind PhononPace in both apps.
 
     hf download gradium/phonon-40m-multilingual --local-dir phonon40m   (and phonon-voices, see android/phonon_pack.py)
     PTTS=/path/to/ptts python3 phonon_pace/pace.py

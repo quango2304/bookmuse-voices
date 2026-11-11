@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Assembles the Android Phonon pack (bookmuse_android T61: Phonon 40M multilingual, five languages) and zips it for a release of this repo.
+"""Assembles the Android Phonon pack (bookmuse_android: Phonon 40M multilingual, five languages) and zips it for a release of this repo.
 
     hf auth login        # the model is gated: accept its terms (CC BY-NC 4.0) on the model page first
     hf download gradium/phonon-40m-multilingual --local-dir phonon40m
