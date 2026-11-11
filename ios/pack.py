@@ -6,7 +6,8 @@ The iOS app downloads its packs; nothing is bundled. A pack is one folder:
   vi      VieNeu Nano for Core ML (nano/export_assets.py: three .mlmodelc, config.json, null.f32, voices/*.f32) plus sea_g2p.bin
 
 Usage:
-  python3 -I ios/pack.py <folder> <pack> <n>      e.g. ios/pack.py ~/voices/ios/vi vi 1
+  python3 -I ios/pack.py <folder> <pack> <n> [ios|android]      e.g. ios/pack.py ~/voices/ios/vi vi 1
+  (android: the same zip for a pack the Android app downloads, e.g. Chinese: bookmuse-voices-android-zh-<n>.zip)
 
 Writes dist/bookmuse-voices-ios-<pack>-<n>.zip (files at the root, sorted, fixed timestamps, deflated, so the same folder always
 gives the same bytes) and prints the pin for bookmuse_ios `VoicePacks.swift` and the command that uploads it. Never upload over a
@@ -15,12 +16,13 @@ published file: a changed pack is a new <n>.
 import hashlib, os, pathlib, sys, zipfile
 
 def main():
-    if len(sys.argv) != 4:
+    if len(sys.argv) not in (4, 5):
         sys.exit(__doc__)
     folder, pack, n = pathlib.Path(sys.argv[1]).expanduser().resolve(), sys.argv[2], int(sys.argv[3])
+    platform = sys.argv[4] if len(sys.argv) == 5 else "ios"
     if not folder.is_dir():
         sys.exit(f"{folder} is not a folder")
-    out = pathlib.Path(__file__).resolve().parent.parent / "dist" / f"bookmuse-voices-ios-{pack}-{n}.zip"
+    out = pathlib.Path(__file__).resolve().parent.parent / "dist" / f"bookmuse-voices-{platform}-{pack}-{n}.zip"
     out.parent.mkdir(exist_ok=True)
     files = sorted(p for p in folder.rglob("*") if p.is_file() and p.name != ".DS_Store")
     unpacked = 0
@@ -39,10 +41,10 @@ def main():
             digest.update(chunk)
     size = out.stat().st_size
     print(f"{out.name}: {len(files)} files, {size:,} B zipped, {unpacked:,} B unpacked")
-    print("Pin (VoicePacks.swift):")
+    print("Pin (VoicePacks.swift / the Android pack list):")
     print(f'    .init(id: "{pack}", version: {n}, size: {size}, unpackedSize: {unpacked}, sha256: "{digest.hexdigest()}"),')
     print("Upload (from wanngo_web, wrangler logged in to the wanngo account):")
-    print(f"npx wrangler r2 object put wanngo-media/voices/ios/{out.name} --file {out} --content-type application/zip "
+    print(f"npx wrangler r2 object put wanngo-media/voices/{platform}/{out.name} --file {out} --content-type application/zip "
           "--cache-control 'public, max-age=31536000, immutable' --remote")
 
 if __name__ == "__main__":
