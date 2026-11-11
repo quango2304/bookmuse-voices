@@ -19,6 +19,8 @@ GMReader `OnDeviceVoices`). The Android pack takes its voices from `gradium/phon
 
 Each release is pinned by sha256 in the app that downloads it; never replace a file in a published release, make a new one.
 
+**Pinned by bookmuse_android now: v6** (`bookmuse-voices-android-phonon-1.zip`, `bookmuse-voices-android-vi-7.zip`). The table below stops at v4; the full list of releases is in the parent repo's `docs/listening.md`.
+
 | Release | File | Contents | Used by |
 |---|---|---|---|
 | v4 | `bookmuse-voices-android-phonon-1.zip` (86 MB) | Phonon 40M multilingual: `model.q8.gguf`, `tokenizer.json`, `config.json`, `voices/<Key>.safetensors` (90 voices) | **bookmuse_android** (pinned; **not uploaded to v4 yet**, 2026-11-04) |
@@ -41,7 +43,7 @@ the model is gated); every human voice of `gradium/phonon-voices` goes in, the 1
 `step.onnx` is Nano's vector estimator with the guidance pair as one batch and the Euler update inside, int8 MatMul (40 MB);
 `text_encoder.onnx` and `codec_decoder.onnx` keep fp32 compute with fp16-stored weights; `duration_predictor.onnx` as published;
 `config.json`, `null.bin`, `voices/<key>.bin` and `sea_g2p.bin` are the files the iOS app ships. Measured choices are in
-bookmuse `specs/tasks/T52-android-vieneu-nano.md`.
+bookmuse `docs/listening.md`.
 
 ## Credits and licences
 
