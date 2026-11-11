@@ -9,6 +9,8 @@ import torch
 from onnx import TensorProto, helper
 from onnx2torch import convert
 
+from align import with_align
+
 SNAPSHOT = glob.glob('/Users/leongo/.cache/huggingface/hub/models--pnnbao-ump--VieNeu-TTS-v3-Nano/snapshots/*/')[0]
 
 
@@ -53,6 +55,9 @@ def tidy(m: onnx.ModelProto) -> onnx.ModelProto:
     return m
 
 
-def torch_graph(name: str) -> torch.nn.Module:
+def torch_graph(name: str, align: bool = False) -> torch.nn.Module:
+    """`align`: the vector estimator also returns block 1's text attention (align.py)."""
     model = masked_estimator() if name == 'vector_estimator' else onnx.load(SNAPSHOT + name + '.onnx')
+    if align:
+        model = with_align(model)
     return convert(tidy(model)).eval()

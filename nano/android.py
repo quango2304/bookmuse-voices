@@ -4,7 +4,8 @@ the voices, settings and dictionary the iOS app ships (bookmuse_ios GMReader/OnD
 
 - step.onnx: one Euler step with classifier-free guidance, by ONNX surgery on vector_estimator.onnx (no torch round trip): x and t
   are doubled to a batch of 2, so the conditional and the null pass are one run (ctx, ctx_mask, spk and style come as a pair, the
-  null text padded to the chunk's length and masked), then x_next = x + dt · (v_null + cfg · (v − v_null)). Dynamic T and L.
+  null text padded to the chunk's length and masked), then x_next = x + dt · (v_null + cfg · (v − v_null)). Dynamic T and L. Also
+  `align` (1, T, L): the conditional pass's text attention in block 1, averaged over heads, for the app's word times (align.py).
   MatMul and Gemm weights in int8 (dynamic quantization, per tensor): 40 MB and ~1.9× the speed of fp32 on ARM CPUs; F0 moves
   0.65 st from fp32 on the same noise, where two fp32 seeds differ by 2–4 st.
 - text_encoder.onnx, codec_decoder.onnx: weights stored in fp16 and cast to fp32 when the session loads (half the size, the same
@@ -12,8 +13,9 @@ the voices, settings and dictionary the iOS app ships (bookmuse_ios GMReader/OnD
 - config.json (vocab, ids, frame rate, hop, steps, cfg, sway, each voice's speed), null.bin and voices/<key>.bin (x-vector 192 +
   style 50 × 256, float32 little-endian), sea_g2p.bin. A voice in catalog.ANDROID takes its own clone and speed here.
 
-Writes dist/android/vi-nano/ and dist/bookmuse-voices-android-vi-<ZIP_VERSION>.zip (deterministic: sorted entries, fixed timestamps) and
-prints the pin for bookmuse_android voices/build.gradle.kts.
+Writes dist/android/vi-nano/ and dist/bookmuse-voices-android-vi-<ZIP_VERSION>.zip (deterministic: sorted entries, fixed timestamps), and
+prints the pin for bookmuse_android voices/build.gradle.kts and the R2 upload command. A voice in catalog.ANDROID is read from
+work/nano/voices/<file>.json, or from work/nano/android/voices/<file>.bin (a pack's own copy) when the clone's JSON is gone.
 
     uv run --no-project --python 3.12 --with onnx==1.19.0 --with onnxruntime==1.31.0 --with numpy python -I nano/android.py
 """
@@ -32,6 +34,7 @@ from onnxruntime.quantization import QuantType, quantize_dynamic
 from onnxruntime.quantization.shape_inference import quant_pre_process
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from align import with_align  # noqa: E402
 from catalog import ANDROID  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -39,11 +42,11 @@ SNAPSHOT = glob.glob(str(Path.home() / ".cache/huggingface/hub/models--pnnbao-um
 IOS = ROOT.parent / "bookmuse_ios/Packages/GlossmarkKit/Sources/GMReader/OnDeviceVoices/vi"
 WORK = ROOT / "work/nano/android"
 OUT = ROOT / "dist/android/vi-nano"
-ZIP_VERSION = 7  # bookmuse-voices-android-vi-<n>.zip (1 and 2 were an older model)
+ZIP_VERSION = 8  # bookmuse-voices-android-vi-<n>.zip (1 and 2 were an older model; 8 added `align`)
 
 
 def step_graph() -> onnx.ModelProto:
-    m = onnx.load(SNAPSHOT + "vector_estimator.onnx")
+    m = with_align(onnx.load(SNAPSHOT + "vector_estimator.onnx"))
     g = m.graph
     renamed = {"x": "ve_x", "t": "ve_t"}
     for n in g.node:
@@ -75,7 +78,7 @@ def step_graph() -> onnx.ModelProto:
     del g.node[:]
     g.node.extend(nodes)
     del g.output[:]
-    g.output.extend([helper.make_tensor_value_info("x_next", TP.FLOAT, [1, 144, "T"])])
+    g.output.extend([helper.make_tensor_value_info("x_next", TP.FLOAT, [1, 144, "T"]), helper.make_tensor_value_info("align", TP.FLOAT, [1, "T", "L"])])
     del g.value_info[:]  # shapes inferred for a batch of 1
     onnx.checker.check_model(m)
     return m
@@ -122,10 +125,12 @@ def main():
     (OUT / "config.json").write_text(json.dumps(config, ensure_ascii=False))
     shutil.copyfile(IOS / "null.f32", OUT / "null.bin")
     for key in sorted(config["speeds"]):
-        if key in ANDROID:
+        if key in ANDROID and (ROOT / "work/nano/voices" / f"{ANDROID[key][0]}.json").exists():
             v = json.load(open(ROOT / "work/nano/voices" / f"{ANDROID[key][0]}.json"))
             np.concatenate([np.asarray(v["speaker_emb"], np.float32).reshape(-1),
                             np.asarray(v["style"], np.float32).reshape(-1)]).tofile(OUT / "voices" / f"{key}.bin")
+        elif key in ANDROID:
+            shutil.copyfile(WORK / "voices" / f"{ANDROID[key][0]}.bin", OUT / "voices" / f"{key}.bin")
         else:
             shutil.copyfile(IOS / "voices" / f"{key}.f32", OUT / "voices" / f"{key}.bin")
     shutil.copyfile(IOS / "sea_g2p.bin", OUT / "sea_g2p.bin")
@@ -146,6 +151,9 @@ def main():
     size = zip_path.stat().st_size
     print(f"{zip_path.name}: {size} bytes, sha256 {digest}")
     print(f'  voices/build.gradle.kts: VoicePack("vi", "{zip_path.name}", {size}L, "{digest}")')
+    print("Upload (from wanngo_web, wrangler logged in to the wanngo account):")
+    print(f"npx wrangler r2 object put wanngo-media/voices/android/{zip_path.name} --file {zip_path} --content-type application/zip "
+          "--cache-control 'public, max-age=31536000, immutable' --remote")
 
 
 if __name__ == "__main__":
