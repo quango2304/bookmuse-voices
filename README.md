@@ -8,7 +8,8 @@ Vietnamese is [VieNeu-TTS v3 Nano](https://huggingface.co/pnnbao-ump/VieNeu-TTS-
 | Folder | What it makes | Used by |
 |---|---|---|
 | `android/phonon_pack.py` | Android Phonon: the Phonon 40M checkpoint folder (q8 GGUF, tokenizer, config, 90 human voices: en 25, fr 15, de 13, es 25, pt 12) and its release zip | bookmuse_android (`:voices:fetchVoices`) |
-| `phonon_pace/` | The words-a-second of every Phonon voice on one passage per language (`pace.py` → `pace.json`): the numbers behind both apps' `PhononPace` tables | bookmuse_ios, bookmuse_android |
+| `phonon_pace/` | The words-a-second of every Phonon voice on one passage per language, at its own pace and at its `duration_delta` (`pace.py` → `pace.json`): the rule behind the apps' pace; `clips.py` the ▶︎ preview clips | bookmuse_ios, bookmuse_android |
+| `ios/phonon_export.sh` | The iOS Phonon Core ML bundle (`export_coreml` of ptts 0.6.0), each voice's pace fixed in it | bookmuse_ios |
 | `nano/` | Vietnamese: VieNeu-TTS v3 Nano for Core ML on iOS (`convert.py`, `export_assets.py`) and ONNX Runtime on Android (`android.py`), and the cloned voices (`voice.py`, `catalog.py`) | bookmuse_ios, bookmuse_android |
 | `turbo/` | VieNeu-TTS v3 Turbo: the voices Nano's are cloned from, and the Python environment the Nano scripts run in | `nano/voice.py`, `render.py`, `vbee_ref.py` |
 

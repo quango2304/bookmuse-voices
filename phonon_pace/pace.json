@@ -1,92 +1,452 @@
 {
- "en.Zoey": 3.736,
- "en.Juniper": 3.629,
- "en.Everly": 3.491,
- "en.Harper": 3.736,
- "en.Hadley": 3.491,
- "en.Delia": 3.603,
- "en.Easton": 4.034,
- "en.Micah": 3.821,
- "en.Trevor": 3.553,
- "en.Russell": 3.971,
- "en.Preston": 3.59,
- "en.Miles": 3.835,
- "en.Maeve": 3.642,
- "en.Freya": 3.835,
- "en.Pippa": 3.565,
- "en.Elodie-Rose": 3.528,
- "en.Imogen": 3.629,
- "en.Lottie": 3.603,
- "en.Alfie": 3.821,
- "en.Hugh": 3.668,
- "en.Edwin": 3.722,
- "en.Spencer": 3.59,
- "en.Toby": 3.764,
- "en.Teddy": 3.75,
- "es.Noa": 3.455,
- "es.Lucia-Sol": 3.682,
- "es.Candela": 3.585,
- "es.Celia": 3.545,
- "es.Alba": 3.545,
- "es.Alicia": 3.545,
- "es.Marcos": 3.322,
- "es.Borja": 3.626,
- "es.Iker": 3.333,
- "es.Nuno": 3.467,
- "es.Izan": 3.8,
- "es.Guillermo": 3.369,
- "es.Rebeca": 3.545,
- "es.Regina": 3.299,
- "es.Danae": 3.405,
- "es.Azucena": 2.879,
- "es.Jimena": 3.417,
- "es.Ximena": 3.242,
- "es.Lalo": 3.571,
- "es.Aldo": 3.668,
- "es.Yael": 3.43,
- "es.Ulises": 3.417,
- "es.Leonel": 3.231,
- "es.Nico": 3.322,
- "de.Nele": 3.336,
- "de.Jette": 3.37,
- "de.Annika": 3.155,
- "de.Jule": 3.206,
- "de.Lotta": 3.292,
- "de.Josefine": 3.115,
- "de.Anton": 3.259,
- "de.Mirko": 3.314,
- "de.Mats": 3.217,
- "de.Henrik": 3.27,
- "de.Leon": 3.281,
- "de.Mika": 3.125,
- "fr.Noemie": 3.945,
- "fr.Coralie": 3.85,
- "fr.Tiphaine": 3.865,
- "fr.Maelys": 3.76,
- "fr.Orianne": 3.5,
- "fr.Solene": 3.716,
- "fr.Augustin": 3.702,
- "fr.Arnaud": 3.789,
- "fr.Jules": 3.539,
- "fr.Baptiste": 3.85,
- "fr.Lucien": 3.881,
- "fr.Marius": 4.044,
- "pt.Manuela-Lu": 3.355,
- "pt.Isadora": 3.456,
- "pt.Debora": 3.012,
- "pt.Rafaela": 3.47,
- "pt.Clarice": 2.63,
- "pt.Flavia": 3.032,
- "pt.Davi": 3.294,
- "pt.Igor": 3.247,
- "pt.Kaua": 3.443,
- "pt.Vitor": 3.224,
- "pt.Otavio": 2.716,
- "pt.Marcelo": 2.888,
- "en.Bryony": 3.668,
- "fr.Ninon": 3.716,
- "es.Nerea": 3.467,
- "de.Svea": 3.196,
- "fr.Lilou": 3.702,
- "fr.Helene": 2.989
+ "en.Zoey": {
+  "own": 3.736,
+  "delta": 0.15,
+  "paced": 3.432
+ },
+ "en.Juniper": {
+  "own": 3.629,
+  "delta": 0.15,
+  "paced": 3.287
+ },
+ "en.Everly": {
+  "own": 3.491,
+  "delta": 0.15,
+  "paced": 3.154
+ },
+ "en.Harper": {
+  "own": 3.736,
+  "delta": 0.15,
+  "paced": 3.409
+ },
+ "en.Hadley": {
+  "own": 3.491,
+  "delta": 0.15,
+  "paced": 3.135
+ },
+ "en.Delia": {
+  "own": 3.603,
+  "delta": 0.15,
+  "paced": 3.309
+ },
+ "en.Easton": {
+  "own": 4.034,
+  "delta": 0.15,
+  "paced": 3.668
+ },
+ "en.Micah": {
+  "own": 3.821,
+  "delta": 0.15,
+  "paced": 3.516
+ },
+ "en.Trevor": {
+  "own": 3.553,
+  "delta": 0.15,
+  "paced": 3.298
+ },
+ "en.Russell": {
+  "own": 3.971,
+  "delta": 0.15,
+  "paced": 3.668
+ },
+ "en.Preston": {
+  "own": 3.59,
+  "delta": 0.15,
+  "paced": 3.309
+ },
+ "en.Miles": {
+  "own": 3.835,
+  "delta": 0.15,
+  "paced": 3.467
+ },
+ "en.Maeve": {
+  "own": 3.642,
+  "delta": 0.15,
+  "paced": 3.398
+ },
+ "en.Freya": {
+  "own": 3.835,
+  "delta": 0.15,
+  "paced": 3.528
+ },
+ "en.Pippa": {
+  "own": 3.565,
+  "delta": 0.15,
+  "paced": 3.298
+ },
+ "en.Elodie-Rose": {
+  "own": 3.528,
+  "delta": 0.15,
+  "paced": 3.225
+ },
+ "en.Imogen": {
+  "own": 3.629,
+  "delta": 0.15,
+  "paced": 3.421
+ },
+ "en.Lottie": {
+  "own": 3.603,
+  "delta": 0.15,
+  "paced": 3.386
+ },
+ "en.Alfie": {
+  "own": 3.821,
+  "delta": 0.15,
+  "paced": 3.503
+ },
+ "en.Hugh": {
+  "own": 3.668,
+  "delta": 0.15,
+  "paced": 3.467
+ },
+ "en.Edwin": {
+  "own": 3.722,
+  "delta": 0.15,
+  "paced": 3.421
+ },
+ "en.Spencer": {
+  "own": 3.59,
+  "delta": 0.15,
+  "paced": 3.421
+ },
+ "en.Toby": {
+  "own": 3.764,
+  "delta": 0.15,
+  "paced": 3.456
+ },
+ "en.Teddy": {
+  "own": 3.75,
+  "delta": 0.15,
+  "paced": 3.491
+ },
+ "es.Noa": {
+  "own": 3.455,
+  "delta": 0.15,
+  "paced": 3.231
+ },
+ "es.Lucia-Sol": {
+  "own": 3.682,
+  "delta": 0.15,
+  "paced": 3.455
+ },
+ "es.Candela": {
+  "own": 3.585,
+  "delta": 0.15,
+  "paced": 3.322
+ },
+ "es.Celia": {
+  "own": 3.545,
+  "delta": 0.15,
+  "paced": 3.276
+ },
+ "es.Alba": {
+  "own": 3.545,
+  "delta": 0.15,
+  "paced": 3.242
+ },
+ "es.Alicia": {
+  "own": 3.545,
+  "delta": 0.15,
+  "paced": 3.299
+ },
+ "es.Marcos": {
+  "own": 3.322,
+  "delta": 0.15,
+  "paced": 3.055
+ },
+ "es.Borja": {
+  "own": 3.626,
+  "delta": 0.15,
+  "paced": 3.381
+ },
+ "es.Iker": {
+  "own": 3.333,
+  "delta": 0.15,
+  "paced": 3.125
+ },
+ "es.Nuno": {
+  "own": 3.467,
+  "delta": 0.15,
+  "paced": 3.345
+ },
+ "es.Izan": {
+  "own": 3.8,
+  "delta": 0.15,
+  "paced": 3.467
+ },
+ "es.Guillermo": {
+  "own": 3.369,
+  "delta": 0.15,
+  "paced": 3.167
+ },
+ "es.Rebeca": {
+  "own": 3.545,
+  "delta": 0.15,
+  "paced": 3.276
+ },
+ "es.Regina": {
+  "own": 3.299,
+  "delta": 0.15,
+  "paced": 3.065
+ },
+ "es.Danae": {
+  "own": 3.405,
+  "delta": 0.15,
+  "paced": 3.167
+ },
+ "es.Azucena": {
+  "own": 2.879,
+  "delta": 0,
+  "paced": 2.879
+ },
+ "es.Jimena": {
+  "own": 3.417,
+  "delta": 0.15,
+  "paced": 3.115
+ },
+ "es.Ximena": {
+  "own": 3.242,
+  "delta": 0.15,
+  "paced": 2.96
+ },
+ "es.Lalo": {
+  "own": 3.571,
+  "delta": 0.15,
+  "paced": 3.405
+ },
+ "es.Aldo": {
+  "own": 3.668,
+  "delta": 0.15,
+  "paced": 3.455
+ },
+ "es.Yael": {
+  "own": 3.43,
+  "delta": 0.15,
+  "paced": 3.22
+ },
+ "es.Ulises": {
+  "own": 3.417,
+  "delta": 0.15,
+  "paced": 3.209
+ },
+ "es.Leonel": {
+  "own": 3.231,
+  "delta": 0.15,
+  "paced": 2.969
+ },
+ "es.Nico": {
+  "own": 3.322,
+  "delta": 0.15,
+  "paced": 3.025
+ },
+ "de.Nele": {
+  "own": 3.336,
+  "delta": 0.15,
+  "paced": 3.057
+ },
+ "de.Jette": {
+  "own": 3.37,
+  "delta": 0.15,
+  "paced": 3.175
+ },
+ "de.Annika": {
+  "own": 3.155,
+  "delta": 0.15,
+  "paced": 2.821
+ },
+ "de.Jule": {
+  "own": 3.206,
+  "delta": 0.15,
+  "paced": 2.948
+ },
+ "de.Lotta": {
+  "own": 3.292,
+  "delta": 0.15,
+  "paced": 3.029
+ },
+ "de.Josefine": {
+  "own": 3.115,
+  "delta": 0.15,
+  "paced": 2.805
+ },
+ "de.Anton": {
+  "own": 3.259,
+  "delta": 0.15,
+  "paced": 2.983
+ },
+ "de.Mirko": {
+  "own": 3.314,
+  "delta": 0.15,
+  "paced": 2.992
+ },
+ "de.Mats": {
+  "own": 3.217,
+  "delta": 0.15,
+  "paced": 2.854
+ },
+ "de.Henrik": {
+  "own": 3.27,
+  "delta": 0.15,
+  "paced": 3.02
+ },
+ "de.Leon": {
+  "own": 3.281,
+  "delta": 0.15,
+  "paced": 2.896
+ },
+ "de.Mika": {
+  "own": 3.125,
+  "delta": 0.15,
+  "paced": 2.79
+ },
+ "fr.Noemie": {
+  "own": 3.945,
+  "delta": 0.15,
+  "paced": 3.688
+ },
+ "fr.Coralie": {
+  "own": 3.85,
+  "delta": 0.15,
+  "paced": 3.552
+ },
+ "fr.Tiphaine": {
+  "own": 3.865,
+  "delta": 0.15,
+  "paced": 3.591
+ },
+ "fr.Maelys": {
+  "own": 3.76,
+  "delta": 0.15,
+  "paced": 3.487
+ },
+ "fr.Orianne": {
+  "own": 3.5,
+  "delta": 0.15,
+  "paced": 3.274
+ },
+ "fr.Solene": {
+  "own": 3.716,
+  "delta": 0.15,
+  "paced": 3.389
+ },
+ "fr.Augustin": {
+  "own": 3.702,
+  "delta": 0.15,
+  "paced": 3.5
+ },
+ "fr.Arnaud": {
+  "own": 3.789,
+  "delta": 0.15,
+  "paced": 3.605
+ },
+ "fr.Jules": {
+  "own": 3.539,
+  "delta": 0.15,
+  "paced": 3.263
+ },
+ "fr.Baptiste": {
+  "own": 3.85,
+  "delta": 0.15,
+  "paced": 3.591
+ },
+ "fr.Lucien": {
+  "own": 3.881,
+  "delta": 0.15,
+  "paced": 3.674
+ },
+ "fr.Marius": {
+  "own": 4.044,
+  "delta": 0.15,
+  "paced": 3.76
+ },
+ "pt.Manuela-Lu": {
+  "own": 3.355,
+  "delta": 0.15,
+  "paced": 3.072
+ },
+ "pt.Isadora": {
+  "own": 3.456,
+  "delta": 0.15,
+  "paced": 3.179
+ },
+ "pt.Debora": {
+  "own": 3.012,
+  "delta": 0,
+  "paced": 3.012
+ },
+ "pt.Rafaela": {
+  "own": 3.47,
+  "delta": 0.15,
+  "paced": 3.125
+ },
+ "pt.Clarice": {
+  "own": 2.63,
+  "delta": 0,
+  "paced": 2.63
+ },
+ "pt.Flavia": {
+  "own": 3.032,
+  "delta": 0,
+  "paced": 3.032
+ },
+ "pt.Davi": {
+  "own": 3.294,
+  "delta": 0.15,
+  "paced": 3.042
+ },
+ "pt.Igor": {
+  "own": 3.247,
+  "delta": 0.15,
+  "paced": 2.982
+ },
+ "pt.Kaua": {
+  "own": 3.443,
+  "delta": 0.15,
+  "paced": 3.224
+ },
+ "pt.Vitor": {
+  "own": 3.224,
+  "delta": 0.15,
+  "paced": 2.953
+ },
+ "pt.Otavio": {
+  "own": 2.716,
+  "delta": 0,
+  "paced": 2.716
+ },
+ "pt.Marcelo": {
+  "own": 2.888,
+  "delta": 0,
+  "paced": 2.888
+ },
+ "en.Bryony": {
+  "own": 3.668,
+  "delta": 0.15,
+  "paced": 3.456
+ },
+ "fr.Ninon": {
+  "own": 3.716,
+  "delta": 0.15,
+  "paced": 3.513
+ },
+ "es.Nerea": {
+  "own": 3.467,
+  "delta": 0.15,
+  "paced": 3.199
+ },
+ "de.Svea": {
+  "own": 3.196,
+  "delta": 0.15,
+  "paced": 2.939
+ },
+ "fr.Lilou": {
+  "own": 3.702,
+  "delta": 0.15,
+  "paced": 3.377
+ },
+ "fr.Helene": {
+  "own": 2.989,
+  "delta": 0,
+  "paced": 2.989
+ }
 }
