@@ -1,0 +1,6 @@
+[project]
+name = "japanese"
+version = "0"
+requires-python = "==3.11.*"
+dependencies = ["pocket-tts==4.0.1", "huggingface_hub", "safetensors", "sentencepiece==0.2.3", "tokenizers==0.23.3", "transformers",
+                "protobuf", "pyyaml", "coremltools==9.0"]
