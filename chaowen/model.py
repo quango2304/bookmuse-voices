@@ -1,4 +1,4 @@
-"""Suxin-Light (a Piper VITS) as three PyTorch modules that convert to Core ML, each free of the graph's dynamic ops:
+"""Chao Wen (Piper's zh_CN-chaowen-medium, a VITS) as three PyTorch modules that convert to Core ML, each free of the graph's dynamic ops:
 
 - Encoder: phoneme ids and their mask → the text encoder's hidden state x (1, 192, T) and the prior mean m (1, 192, T).
   Cut from the ONNX graph (onnx2torch).
@@ -6,11 +6,12 @@
   reverse from zero noise, written here from its weights: the ONNX graph's spline uses NonZero / GatherND / ScatterND,
   which neither onnx2torch nor Core ML take, so the spline is computed for every element and picked with masks.
 - Decoder: m spread over the frames (each phoneme's column repeated for its frames) and the frame mask → 22.05 kHz audio
-  (256 samples a frame). The flow in reverse and the iSTFT decoder, cut from the ONNX graph.
+  (256 samples a frame). The flow in reverse and the HiFiGAN decoder, cut from the ONNX graph.
 
 The spreading between Durations and Decoder is a few lines in the app. With noise 0 / 0 (the card's settings) the prior's
 sample is its mean, so the log-variance is never needed."""
 import math
+import re
 
 import numpy as np
 import onnx
@@ -32,32 +33,46 @@ def _extract(inputs, outputs, name):
     return onnx.load(str(path))
 
 
+# The rate (samples per frame) a decoder conv's input runs at: HiFiGAN upsamples ×8, ×8, ×4 (256 a frame); each group of three
+# resblocks follows one upsampling.
+RATES = (1, 8, 64, 256)
+
+
+def _rate(name: str) -> int:
+    if name.startswith("/dec/conv_pre") or name.startswith("/dec/ups.0/"):
+        return 1
+    if name.startswith("/dec/conv_post"):
+        return 256
+    m = re.match(r"/dec/ups\.(\d+)/", name)
+    if m:
+        return RATES[int(m.group(1))]
+    m = re.match(r"/dec/resblocks\.(\d+)/", name)
+    assert m, name
+    return RATES[int(m.group(1)) // 3 + 1]
+
+
 def _masked_decoder(m: onnx.ModelProto) -> onnx.ModelProto:
-    """Zeros the padded frames before every conv of the decoder (and before the iSTFT's overlap-add), so a fixed window
-    that runs past the end of the sentence gives the audio the whole sentence gives: there the original's convs see
-    their own zero padding. After the reflection pad (one frame added at the start) the mask is one frame longer."""
-    mask, mask1 = DEC_IN[1], DEC_IN[1] + "_padded"
+    """Zeros the padded frames before every conv of the decoder, at the rate that conv runs at, so a fixed window that runs
+    past the end of the sentence gives the audio the whole sentence gives: there the original's convs see their own zero
+    padding. (The flow before it takes the mask itself.)"""
+    mask = DEC_IN[1]
+    m.graph.initializer.append(numpy_helper.from_array(np.array([-1], np.int64), "mask_last"))
+    nodes = []
+    for r in RATES[1:]:
+        m.graph.initializer.append(numpy_helper.from_array(np.array([1, 1, 1, r], np.int64), f"mask_rep{r}"))
+        m.graph.initializer.append(numpy_helper.from_array(np.array([1, 1, -1], np.int64), f"mask_shape{r}"))
+        nodes += [onnx.helper.make_node("Unsqueeze", [mask, "mask_last"], [f"mask_u{r}"]),
+                  onnx.helper.make_node("Tile", [f"mask_u{r}", f"mask_rep{r}"], [f"mask_t{r}"]),
+                  onnx.helper.make_node("Reshape", [f"mask_t{r}", f"mask_shape{r}"], [f"mask_{r}"])]
     prod = {o: n for n in m.graph.node for o in n.output}
-    after_pad = set()
-    for n in m.graph.node:  # nodes downstream of the reflection pad
-        if n.name == "/dec/reflection_pad/Pad" or any(i in after_pad for i in n.input):
-            after_pad.update(n.output)
-    m.graph.initializer.extend([numpy_helper.from_array(np.array([0], np.int64), "mask_s0"),
-                                numpy_helper.from_array(np.array([1], np.int64), "mask_s1"),
-                                numpy_helper.from_array(np.array([2], np.int64), "mask_ax")])
-    nodes = [onnx.helper.make_node("Slice", [mask, "mask_s0", "mask_s1", "mask_ax"], ["mask_first"]),
-             onnx.helper.make_node("Concat", ["mask_first", mask], [mask1], axis=2)]
-    mask_t = mask + "_t"  # (1, F, 1), as the attention's "every frame is real" ones
-    nodes.append(onnx.helper.make_node("Transpose", [mask], [mask_t], perm=[0, 2, 1]))
+    done = set()  # convs that share an input (the resblocks after one upsampling) share its masked copy
     for n in m.graph.node:
-        # Each attention block builds its key mask from ones shaped like its input (every frame real); give it the mask.
-        if n.op_type == "ConstantOfShape" and n.name.startswith("/dec/blocks.") and n.name.endswith("/attn/ConstantOfShape"):
-            nodes.append(onnx.helper.make_node("Identity", [mask_t], list(n.output), name=n.name + "_mask"))
-            continue
         if n.op_type in ("Conv", "ConvTranspose") and n.name.startswith("/dec/") and n.input[0] in prod:
+            r = _rate(n.name)
             masked = n.input[0] + "_masked"
-            use = mask1 if n.input[0] in after_pad else mask
-            nodes.append(onnx.helper.make_node("Mul", [n.input[0], use], [masked], name=n.name + "_mask"))
+            if masked not in done:
+                nodes.append(onnx.helper.make_node("Mul", [n.input[0], mask if r == 1 else f"mask_{r}"], [masked], name=n.name + "_mask"))
+                done.add(masked)
             n.input[0] = masked
         nodes.append(n)
     del m.graph.node[:]
@@ -196,10 +211,11 @@ class Durations(nn.Module):
         self.proj = _conv(w, "dp.proj", 192, 192)
         # Reverse order with the unused flow dropped, as VITS: flips around flows 7, 5, 3, then the elementwise affine.
         self.flows = nn.ModuleList([_ConvFlow(w, f"dp.flows.{i}") for i in (7, 5, 3)])
-        exp_in = next(n for n in m.graph.node if n.name == "/dp/flows.0/Exp").input[0]
-        neg_logs = w[exp_in] if exp_in in w else torch.from_numpy(numpy_helper.to_array(consts[exp_in].attribute[0].t))
+        # exp(-logs) of the elementwise affine: the second input of its Mul, already folded to a constant in this graph
+        scale_in = next(n for n in m.graph.node if n.name == "/dp/flows.0/Mul").input[1]
+        scale = w[scale_in] if scale_in in w else torch.from_numpy(numpy_helper.to_array(consts[scale_in].attribute[0].t).copy())
         self.register_buffer("ea_m", w["dp.flows.0.m"][None])  # (1, 2, 1)
-        self.register_buffer("ea_scale", torch.exp(neg_logs)[None])
+        self.register_buffer("ea_scale", scale.reshape(1, 2, 1))
 
     def forward(self, x, mask, scale=None):
         g = self.proj(self.convs(self.pre(x), mask)) * mask

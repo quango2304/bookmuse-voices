@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Suxin-Light → three Core ML models (iOS 18, flexible lengths), written to work/suxin/coreml:
+"""Chao Wen → three Core ML models (iOS 18, fixed sizes, CPU), written to work/chaowen/coreml:
 
-- SuxinEncoder: ids (1, T) int32, lengths (1,) int32 → x, m (1, 192, T)
-- SuxinDurations: x (1, 192, T), mask (1, 1, T) → frames (1, 1, T)
-- SuxinDecoder: z (1, 192, F), mask (1, 1, F) → audio (1, 1, 256 F) at 22.05 kHz
+- ChaowenEncoder: ids (1, 384) int32, lengths (1,) int32 → x, m (1, 192, 384)
+- ChaowenDurations: x (1, 192, 384), mask (1, 1, 384), scale (1,) → frames (1, 1, 384)
+- ChaowenDecoder: z (1, 192, 512), mask (1, 1, 512) → audio (1, 1, 256 × 512) at 22.05 kHz
 
     uv run python convert.py [--fp32]
 """
@@ -21,7 +21,7 @@ OUT = WORK / "coreml"
 OUT.mkdir(parents=True, exist_ok=True)
 PRECISION = ct.precision.FLOAT32 if "--fp32" in sys.argv else ct.precision.FLOAT16
 SUFFIX = "-fp32" if "--fp32" in sys.argv else ""
-TOKENS, WINDOW = 384, 512  # phonemes per call (padded); frames per decoder window (4 attention blocks)
+TOKENS, WINDOW = 384, 512  # phonemes per call (padded); frames per decoder window
 
 # onnx2torch writes some comparisons with their long names, which coremltools only knows by the short ones.
 from coremltools.converters.mil.frontend.torch import ops as _ops  # noqa: E402,F401
@@ -65,12 +65,12 @@ if __name__ == "__main__":
         ids = torch.randint(1, 100, (1, T), dtype=torch.int32)
         enc = torch.jit.trace(EncoderI32().eval(), (ids, torch.tensor([T // 2], dtype=torch.int32)))
         save(enc, [ct.TensorType("ids", (1, T), dtype=np.int32), ct.TensorType("lengths", (1,), dtype=np.int32)],
-             [ct.TensorType("x"), ct.TensorType("m")], "SuxinEncoder")
+             [ct.TensorType("x"), ct.TensorType("m")], "ChaowenEncoder")
 
         dur = torch.jit.trace(Durations().eval(), (torch.randn(1, 192, T), torch.ones(1, 1, T), torch.ones(1)))
         save(dur, [ct.TensorType("x", (1, 192, T)), ct.TensorType("mask", (1, 1, T)), ct.TensorType("scale", (1,))],
-             [ct.TensorType("frames")], "SuxinDurations")
+             [ct.TensorType("frames")], "ChaowenDurations")
 
         dec = torch.jit.trace(Decoder().eval(), (torch.randn(1, 192, F_), torch.ones(1, 1, F_)))
         save(dec, [ct.TensorType("z", (1, 192, F_)), ct.TensorType("mask", (1, 1, F_))], [ct.TensorType("audio")],
-             "SuxinDecoder")
+             "ChaowenDecoder")

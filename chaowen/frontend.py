@@ -1,17 +1,17 @@
 #!/usr/bin/env python3
-"""Suxin-Light's text front end as the apps run it: the reference the Swift (and Kotlin) ports are checked against.
+"""Chao Wen's text front end as the apps run it: the reference the Swift and Kotlin `ChineseText` ports are checked against.
 
 Text → phoneme ids, and for every id the index of the character (in the text given) it came from:
 1. NFKC; Traditional → Simplified (OpenCC t2s, longest match, same length only); numbers in words (`normalize`).
 2. Chinese runs → pypinyin's readings: its forward longest match (`pypinyin.seg.mmseg`, no_non_phrases) over its phrases, each
    phrase's and character's (initial, final, tone) precomputed here (`build`) as Suxin's front end makes them from pypinyin
    (strict=False), with our fixes; then 一 / 不 tone changes.
-3. Latin words → espeak-ng phonemes from a list made here of the 100,000 most common English words; unknown words letter by letter.
+3. Latin words → Mandarin syllables from a table made here (english.py) of the 100,000 most common English words; unknown
+   words spelled with Chinese letter names.
 4. Symbols → ids (the model's table): a pad after every tone, punctuation mark and space; BOS first, EOS last.
 
-    uv run python frontend.py build            # writes work/suxin/frontend/{phrases,chars,t2s,english}.tsv, phonemes.json
+    uv run python frontend.py build            # writes work/chaowen/frontend/{phrases,chars,t2s,english}.tsv, phonemes.json
     uv run python frontend.py say "文本"        # prints the symbols and ids
-    uv run python frontend.py compare          # against Suxin's own front end on Chinese text without numbers or Latin
     uv run python frontend.py golden FILE      # writes FILE.golden.json: ids and character indices per line, for the ports
 """
 import json
@@ -20,11 +20,11 @@ import sys
 import unicodedata
 from pathlib import Path
 
-WORK = Path(__file__).resolve().parent.parent / "work/suxin"
+WORK = Path(__file__).resolve().parent.parent / "work/chaowen"
 DATA = WORK / "frontend"
-CONFIG = WORK / "zh_en-suxin-light.onnx.json"
+CONFIG = WORK / "zh_CN-chaowen-medium.onnx.json"
 
-# --- Suxin's front end (suxin_tts/mixed_frontend.py), the parts we keep -------------------------------------------------------
+# --- Suxin-Light's front end (suxin_tts/mixed_frontend.py), the parts we keep; Chao Wen's pinyin table is the same ---
 HAN = re.compile("[\u3007\u4e00-\u9fff\u3400-\u4dbf]")  # 〇 too (二〇二六)
 PUNCT = {"。": "。", ".": "。", "？": "？", "?": "？", "！": "！", "!": "！", "、": "，", "，": "，", ",": "，", "：": "，",
          ":": "，", "；": "，", ";": "，", "—": "，", "…": "，", "–": "，", "～": "，", "~": "，"}
@@ -382,47 +382,27 @@ def build():
     import wordfreq
     from piper.phonemize_espeak import EspeakPhonemizer
     espeak = EspeakPhonemizer(str(Path(piper.__file__).parent / "espeak-ng-data"))
-    known = set(cfg["phoneme_id_map"])
 
     def phonemes(word):
-        out = [p for sent in espeak.phonemize("en-us", word) for p in sent if p.strip()]
-        return out if out and all(p in known for p in out) else None
+        return [p for sent in espeak.phonemize("en-us", word) for p in sent if p.strip()]
 
-    with open(DATA / "english.tsv", "w") as f:
+    # espeak's phonemes (kept for english.py, not packed), then the table of Mandarin syllables the pack carries
+    with open(DATA / "english_ipa.tsv", "w") as f:
         for L in "ABCDEFGHIJKLMNOPQRSTUVWXYZ":
             f.write(f"#{L}\t{' '.join(phonemes(L))}\n")
-        n = 0
         for w in wordfreq.top_n_list("en", 100000):
             if re.fullmatch(r"[a-z]+(?:'[a-z]+)?", w) and len(w) > 1:
                 ph = phonemes(w)
                 if ph:
-                    f.write(f"{w}\t{' '.join(ph)}\n"); n += 1
+                    f.write(f"{w}\t{' '.join(ph)}\n")
+    import english
+    table = english.table()
+    with open(DATA / "english.tsv", "w") as f:
+        for k in sorted(table):
+            f.write(f"{k}\t{' '.join(x for syl in table[k] for x in syl)}\n")
     for p in sorted(DATA.iterdir()):
         print(f"{p.name}: {p.stat().st_size:,} B")
-    print("english words:", n)
-
-
-def compare():
-    """Ours against Suxin's own front end on Chinese text without numbers or Latin: the differences should be our fixes only."""
-    sys.path.insert(0, str(WORK))
-    from suxin_tts.mixed_frontend import MixedFrontend
-    theirs = MixedFrontend(WORK, "zh_en-suxin-light")
-    ours = Frontend()
-    texts = [l.strip() for l in (Path(__file__).parent / "corpus_zh.txt").read_text().splitlines() if l.strip()]
-    same = 0
-    for t in texts:
-        if re.search(r"[0-9A-Za-z]", t):
-            continue
-        a, _ = theirs.prepare(t)
-        b, _ = ours.encode(t)
-        if a == b:
-            same += 1
-        else:
-            print("DIFF", t)
-            print("  theirs", " ".join(theirs.phonemize(t)))
-            inv = {v[0]: k for k, v in ours.ids.items()}
-            print("  ours  ", " ".join(inv[i] for i in b[1:-1] if i != ours.pad))
-    print(f"{same} of {len([t for t in texts if not re.search(r'[0-9A-Za-z]', t)])} identical")
+    print("english words:", len(table))
 
 
 def golden(path):
@@ -448,8 +428,6 @@ if __name__ == "__main__":
         inv = {v[0]: k for k, v in f.ids.items()}
         print(" ".join(inv[i] for i in ids))
         print(ids)
-    elif cmd == "compare":
-        compare()
     elif cmd == "golden":
         golden(sys.argv[2])
     else:

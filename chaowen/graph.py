@@ -1,19 +1,18 @@
-"""Suxin-Light's ONNX graph made deterministic for conversion: both random draws (the duration predictor's noise and the
-prior's sample) become zeros, which is what noise 0 / 0 gives anyway (the card's settings); `scales` becomes a constant
-(noise 0, length 1, noise_w 0: the pace is applied on the audio, as for Phonon); and each phoneme's frame count (the
-ceil of its predicted duration) is an extra output, so the app knows when every character starts."""
+"""Chao Wen's ONNX graph made deterministic, as the reference for the checks: both random draws (the duration predictor's noise
+and the prior's sample) become zeros, which is what noise 0 / 0 gives anyway; `scales` becomes a constant (noise 0, the given
+length scale, noise_w 0); and each phoneme's frame count (the ceil of its predicted duration) is an extra output."""
 from pathlib import Path
 
 import numpy as np
 import onnx
 from onnx import helper, numpy_helper
 
-WORK = Path(__file__).resolve().parent.parent / "work/suxin"
-FP32 = WORK / "zh_en-suxin-light.onnx"
+WORK = Path(__file__).resolve().parent.parent / "work/chaowen"
+FP32 = WORK / "zh_CN-chaowen-medium.onnx"
 FLOW_CHANNELS = 192  # the prior z the flow reverses
 
 
-def deterministic(path: Path = FP32) -> onnx.ModelProto:
+def deterministic(path: Path = FP32, length: float = 1.0) -> onnx.ModelProto:
     m = onnx.load(str(path))
     g = m.graph
     nodes = []
@@ -28,7 +27,7 @@ def deterministic(path: Path = FP32) -> onnx.ModelProto:
     keep = [i for i in g.input if i.name != "scales"]
     del g.input[:]
     g.input.extend(keep)
-    g.initializer.append(numpy_helper.from_array(np.array([0.0, 1.0, 0.0], np.float32), "scales"))
+    g.initializer.append(numpy_helper.from_array(np.array([0.0, length, 0.0], np.float32), "scales"))
     g.output.append(helper.make_tensor_value_info("durations", onnx.TensorProto.FLOAT, None))
     g.node.append(helper.make_node("Identity", ["/Ceil_output_0"], ["durations"]))
     return m

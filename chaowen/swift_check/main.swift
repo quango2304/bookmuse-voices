@@ -1,4 +1,4 @@
-// Golden check for the app's SuxinText: every line of the golden files (made by `frontend.py golden`) must come out identical.
+// Golden check for the app's ChineseText: every line of the golden files (made by `frontend.py golden`) must come out identical.
 // usage: swift_check <pack folder> <golden.json> [<golden.json> ...]
 import Foundation
 
@@ -9,7 +9,7 @@ guard args.count >= 3 else { print("usage: swift_check <pack folder> <golden.jso
 
 func now() -> Double { Date().timeIntervalSinceReferenceDate }
 var t0 = now()
-guard let frontend = SuxinText(folder: URL(fileURLWithPath: args[1])) else { print("could not load the pack"); exit(2) }
+guard let frontend = ChineseText(folder: URL(fileURLWithPath: args[1])) else { print("could not load the pack"); exit(2) }
 print(String(format: "load: %.1f ms", (now() - t0) * 1000))
 
 var failed = false
